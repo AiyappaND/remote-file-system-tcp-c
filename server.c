@@ -12,10 +12,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 
 char * get_request = "GET";
 char * inf_request = "INF";
+char * mkd_request = "MKD";
+char * mkf_request = "MKF";
+char * del_request = "DEL";
 char root_volume1[] = "/Volumes/FS1/";
 
 int send_response(int client_sock, char* server_message) {
@@ -52,6 +56,57 @@ char * build_file_info_msg(struct stat stats, char* filedata) {
     strcat(filedata, modified_date);
     return filedata;
 
+}
+
+char * create_directory(char * dirname) {
+    char * full_path1 = malloc(strlen(root_volume1) + strlen(dirname) + 1);
+    strcpy(full_path1, root_volume1);
+    strcat(full_path1, dirname);
+
+    int result = mkdir(full_path1, 0777);
+    char * resultstr = malloc(sizeof(char) * 5);
+
+    if (result == 0) {
+        resultstr = "PASS";
+    }
+    else {
+        resultstr = "FAIL";
+    }
+    return resultstr;
+}
+
+char * create_file(char * filename) {
+    char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
+    strcpy(full_path1, root_volume1);
+    strcat(full_path1, filename);
+
+    int result = fclose(fopen(full_path1, "a"));
+    char * resultstr = malloc(sizeof(char) * 5);
+
+    if (result == 0) {
+        resultstr = "PASS";
+    }
+    else {
+        resultstr = "FAIL";
+    }
+    return resultstr;
+}
+
+char * delete_file(char * filename) {
+    char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
+    strcpy(full_path1, root_volume1);
+    strcat(full_path1, filename);
+
+    int result = remove(full_path1);
+    char * resultstr = malloc(sizeof(char) * 5);
+
+    if (result == 0) {
+        resultstr = "PASS";
+    }
+    else {
+        resultstr = "FAIL";
+    }
+    return resultstr;
 }
 
 char * get_file_info(char * filename) {
@@ -161,6 +216,27 @@ int main(void)
     char * filename = strtok(NULL, ",");
     printf("Filename: %s\n", filename);
     char * server_message = get_file_info(filename);
+    send_response(client_sock, server_message);
+  }
+  else if (strcmp(request_type, mkd_request) == 0) {
+    printf("Attempting to create directory\n");
+    char * dirname = strtok(NULL, ",");
+    printf("Directory name: %s\n", dirname);
+    char * server_message = create_directory(dirname);
+    send_response(client_sock, server_message);
+  }
+  else if (strcmp(request_type, mkf_request) == 0) {
+    printf("Attempting to create file\n");
+    char * filename = strtok(NULL, ",");
+    printf("File name: %s\n", filename);
+    char * server_message = create_file(filename);
+    send_response(client_sock, server_message);
+  }
+  else if (strcmp(request_type, del_request) == 0) {
+    printf("Attempting to delete file\n");
+    char * filename = strtok(NULL, ",");
+    printf("File name: %s\n", filename);
+    char * server_message = delete_file(filename);
     send_response(client_sock, server_message);
   }
 

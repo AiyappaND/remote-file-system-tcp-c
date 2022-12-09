@@ -58,6 +58,39 @@ char * buildFileInfoMessage() {
     return message_to_server;
 }
 
+char * buildCreateFolderMessage() {
+    char path[50];
+    printf("Enter folder name\n");
+    scanf("%49[^\n]%*c", path);
+    char* message_to_server;
+    message_to_server = malloc(3+1+strlen(path)+1);
+    strcpy(message_to_server, "MKD,");
+    strcat(message_to_server, path);
+    return message_to_server;
+}
+
+char * buildCreateFileMessage() {
+    char path[50];
+    printf("Enter file path\n");
+    scanf("%49[^\n]%*c", path);
+    char* message_to_server;
+    message_to_server = malloc(3+1+strlen(path)+1);
+    strcpy(message_to_server, "MKF,");
+    strcat(message_to_server, path);
+    return message_to_server;
+}
+
+char * buildDeleteFileMessage() {
+    char path[50];
+    printf("Enter file path\n");
+    scanf("%49[^\n]%*c", path);
+    char* message_to_server;
+    message_to_server = malloc(3+1+strlen(path)+1);
+    strcpy(message_to_server, "DEL,");
+    strcat(message_to_server, path);
+    return message_to_server;
+}
+
 int send_message_to_server(char * message, int socket_desc) {
     // Send the message to server:
     if(send(socket_desc, message, strlen(message), 0) < 0){
@@ -65,6 +98,18 @@ int send_message_to_server(char * message, int socket_desc) {
         return -1;
     }
     return 0;
+}
+
+int receive_response(int socket_desc, char * response) {
+    // Receive the server's response:
+    if(recv(socket_desc, response, sizeof(response), 0) < 0){
+        printf("Error while receiving server's msg\n");
+        return -1;
+    }
+    else {
+        printf("Received data: %s\n", response);
+        return 0;
+    }
 }
 
 int main(void)
@@ -104,27 +149,31 @@ int main(void)
             char * message = buildFileReadMessage(size);
             send_message_to_server(message, socket_desc);
             char response[size];
-            // Receive the server's response:
-            if(recv(socket_desc, response, sizeof(response), 0) < 0){
-                printf("Error while receiving server's msg\n");
-                return -1;
-            }
-            else {
-                printf("Received data: %s\n", response);
-            }
+            receive_response(socket_desc, response);
         }
         else if (choice == 2) {
             char * message = buildFileInfoMessage();
             send_message_to_server(message, socket_desc);
             char response[500];
-            // Receive the server's response:
-            if(recv(socket_desc, response, sizeof(response), 0) < 0){
-                printf("Error while receiving server's msg\n");
-                return -1;
-            }
-            else {
-                printf("Received data: %s\n", response);
-            }
+            receive_response(socket_desc, response);
+        }
+        else if (choice == 3) {
+            char * message = buildCreateFolderMessage();
+            send_message_to_server(message, socket_desc);
+            char response[5];
+            receive_response(socket_desc, response);
+        }
+        else if (choice == 4) {
+            char * message = buildCreateFileMessage();
+            send_message_to_server(message, socket_desc);
+            char response[5];
+            receive_response(socket_desc, response);
+        }
+        else if (choice == 5) {
+            char * message = buildDeleteFileMessage();
+            send_message_to_server(message, socket_desc);
+            char response[5];
+            receive_response(socket_desc, response);
         }
         else {
             printf("Invalid choice\n");

@@ -107,6 +107,7 @@ char * create_directory(char * dirname) {
 }
 
 char * create_file(char * filename, char * filedata) {
+    printf("Filename %s Filedata %s\n", filename, filedata);
     FILE *fp1;
     FILE * fp2;
     char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
@@ -116,10 +117,18 @@ char * create_file(char * filename, char * filedata) {
     char * full_path2 = malloc(strlen(root_volume2) + strlen(filename) + 1);
     strcpy(full_path2, root_volume2);
     strcat(full_path2, filename);
+    printf("Full path 1: %s, Full path2: %s", full_path1, full_path2);
 
     int result = 0;
     fp1 = fopen(full_path1,"w");
     fp2 = fopen(full_path2,"w");
+
+    if (fp1 == NULL) {
+        printf("Fp1 not opened\n");
+    }
+    if (fp2 == NULL) {
+        printf("Fp2 not opened\n");
+    }
 
     if(fp1 == NULL && fp2 == NULL) {
           result = -1;
@@ -127,7 +136,10 @@ char * create_file(char * filename, char * filedata) {
    if (result != -1) {
        fprintf(fp1,"%s",filedata);
        fprintf(fp2,"%s",filedata);
-       if(fclose(fp1) != 0 && fclose(fp2) != 0) {
+       int c1 = fclose(fp1);
+       int c2 = fclose(fp2);
+       printf("c1 result %d, c2 result %d\n", c1, c2);
+       if( c1 != 0 && c2 != 0) {
           result = -1;
     }
    }
@@ -139,6 +151,8 @@ char * create_file(char * filename, char * filedata) {
     else {
         resultstr = "FAIL";
     }
+    free(full_path2);
+    free(full_path1);
     return resultstr;
 }
 
@@ -178,7 +192,7 @@ char * get_file_info(char * filename) {
     mirror_existing_data(full_path1, full_path2);
     char * filepath = malloc(sizeof(char) * 150);
 
-    if (check_file_exists(full_path1)) {
+    if (check_file_exists(full_path1) == 0) {
         filepath = full_path1;
     }
     else {
@@ -215,13 +229,13 @@ char * get_file_data(char * filename, int size) {
 
     mirror_existing_data(full_path1, full_path2);
 
-    if (check_file_exists(full_path1)) {
+    if (check_file_exists(full_path1) == 0) {
         filepath = full_path1;
     }
     else {
         filepath = full_path2;
     }
-
+    printf("Reading from %s\n", filepath);
     ptr = fopen(filepath, "r");
     if (NULL == ptr) {
         printf("file can't be opened \n");
@@ -230,6 +244,7 @@ char * get_file_data(char * filename, int size) {
         fgets(server_message, size, ptr);
     }
     fclose(ptr);
+    printf("Data: %s\n", server_message);
     return server_message;
 }
 
@@ -238,20 +253,19 @@ void * socketThread(void *arg)
   int newSocket = *((int *)arg);
   // Receive client's message:
   if (recv(newSocket, client_message,
-           sizeof(client_message), 0) < 0){
+           4098, 0) < 0){
     printf("Couldn't receive\n");
     }
 
   pthread_mutex_lock(&lock);
   printf("Msg received from client\n");
   char * data = strdup(client_message);
-  memset(client_message, '\0', sizeof(client_message));
-  char * request_type = strtok(data, ",");
-  if (strcmp(request_type, get_request) == 0) {
+  char * request_type = strtok(data, ",");  if (strcmp(request_type, get_request) == 0) {
     char * filename = strtok(NULL, ",");
     int size = atoi(strtok(NULL, ","));
     printf("Attempting to read file data\n");
     printf("Filename: %s\n", filename);
+    printf("Size: %d\n", size);
     char * server_message = get_file_data(filename, size);
     send_response(newSocket, server_message);
   }

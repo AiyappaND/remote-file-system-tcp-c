@@ -1,11 +1,18 @@
+/*
+ * client.c -- TCP Socket Client
+ *
+ * adapted from:
+ *   https://www.educative.io/answers/how-to-implement-tcp-sockets-in-c
+ */
+
 #include <stdio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <arpa/inet.h>
 #include <stdlib.h>
-#include <fcntl.h> // for open
-#include <unistd.h> // for close
+#include <math.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <errno.h>
 #include<pthread.h>
 
 void * client_parallel(void *arg)

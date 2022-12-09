@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-int getUserInputInteger() {
+int get_user_input_integer() {
     int result;
     char *line = NULL;
     size_t len = 0;
@@ -32,7 +32,7 @@ int getUserInputInteger() {
     return result;
 }
 
-char * buildFileReadMessage(int size) {
+char * build_file_read_message(int size) {
     char path[50];
     printf("Enter full path\n");
     scanf("%49[^\n]%*c", path);
@@ -47,7 +47,7 @@ char * buildFileReadMessage(int size) {
     return message_to_server;
 }
 
-char * buildFileInfoMessage() {
+char * build_file_info_message() {
     char path[50];
     printf("Enter full path\n");
     scanf("%49[^\n]%*c", path);
@@ -58,7 +58,7 @@ char * buildFileInfoMessage() {
     return message_to_server;
 }
 
-char * buildCreateFolderMessage() {
+char * build_create_folder_message() {
     char path[50];
     printf("Enter folder name\n");
     scanf("%49[^\n]%*c", path);
@@ -69,12 +69,12 @@ char * buildCreateFolderMessage() {
     return message_to_server;
 }
 
-char * buildCreateFileMessage() {
+char * build_create_file_message() {
     char path[50];
     printf("Enter file path\n");
     scanf("%49[^\n]%*c", path);
     printf("Enter file size\n");
-    int size = getUserInputInteger();
+    int size = get_user_input_integer();
     char data[size];
     printf("Enter data\n");
     scanf("%s", data);
@@ -87,7 +87,7 @@ char * buildCreateFileMessage() {
     return message_to_server;
 }
 
-char * buildDeleteFileMessage() {
+char * build_delete_file_message() {
     char path[50];
     printf("Enter file path\n");
     scanf("%49[^\n]%*c", path);
@@ -148,39 +148,39 @@ int main(void)
     char dataScanned;
     while (keepRunning == 1) {
         printf("Enter choice\n 1:Read file \n 2:Get file info\n 3:Create folder\n 4:Create file\n 5:Delete file\n");
-        int choice = getUserInputInteger();
+        int choice = get_user_input_integer();
         if (choice == 1) {
             printf("Enter size of file to read\n");
-            int size = getUserInputInteger();
-            char * message = buildFileReadMessage(size);
+            int size = get_user_input_integer();
+            char * message = build_file_read_message(size);
             send_message_to_server(message, socket_desc);
             char response1[size];
             memset(response1, '\0', sizeof(response1));
             receive_response(socket_desc, response1, size);
         }
         else if (choice == 2) {
-            char * message = buildFileInfoMessage();
+            char * message = build_file_info_message();
             send_message_to_server(message, socket_desc);
             char response2[500];
             memset(response2, '\0', sizeof(response2));
             receive_response(socket_desc, response2, 500);
         }
         else if (choice == 3) {
-            char * message = buildCreateFolderMessage();
+            char * message = build_create_folder_message();
             send_message_to_server(message, socket_desc);
             char response3[5];
             memset(response3, '\0', sizeof(response3));
             receive_response(socket_desc, response3, 5);
         }
         else if (choice == 4) {
-            char * message = buildCreateFileMessage();
+            char * message = build_create_file_message();
             send_message_to_server(message, socket_desc);
             char response4[5];
             memset(response4, '\0', sizeof(response4));
             receive_response(socket_desc, response4, 5);
         }
         else if (choice == 5) {
-            char * message = buildDeleteFileMessage();
+            char * message = build_delete_file_message();
             send_message_to_server(message, socket_desc);
             char response5[5];
             memset(response5, '\0', sizeof(response5));

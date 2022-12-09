@@ -248,7 +248,7 @@ char * get_file_data(char * filename, int size) {
     return server_message;
 }
 
-void * socketThread(void *arg)
+void * socket_thread(void *arg)
 {
   int newSocket = *((int *)arg);
   // Receive client's message:
@@ -303,7 +303,7 @@ void * socketThread(void *arg)
     keepRunning = 0;
   }
   pthread_mutex_unlock(&lock);
-  printf("Exit socketThread \n");
+  printf("Exit socket_thread \n");
   pthread_exit(NULL);
 }
 
@@ -358,7 +358,7 @@ int main(){
                  inet_ntoa(client_addr.sin_addr),
                  ntohs(client_addr.sin_port));
 
-        if( pthread_create(&tid[i++], NULL, socketThread, &client_sock) != 0 )
+        if( pthread_create(&tid[i++], NULL, socket_thread, &client_sock) != 0 )
            printf("Failed to create thread\n");
 
         if( i >= 20)

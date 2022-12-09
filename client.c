@@ -73,10 +73,17 @@ char * buildCreateFileMessage() {
     char path[50];
     printf("Enter file path\n");
     scanf("%49[^\n]%*c", path);
+    printf("Enter file size\n");
+    int size = getUserInputInteger();
+    char data[size];
+    printf("Enter data\n");
+    scanf("%s", data);
     char* message_to_server;
-    message_to_server = malloc(3+1+strlen(path)+1);
+    message_to_server = malloc(3+1+strlen(path)+1+strlen(data)+1);
     strcpy(message_to_server, "MKF,");
     strcat(message_to_server, path);
+    strcat(message_to_server, ",");
+    strcat(message_to_server, data);
     return message_to_server;
 }
 
@@ -128,7 +135,7 @@ int main(void)
   
   // Set port and IP the same as server-side:
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(2000);
+  server_addr.sin_port = htons(7799);
   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   
   // Send connection request to server:
@@ -148,32 +155,32 @@ int main(void)
             int size = getUserInputInteger();
             char * message = buildFileReadMessage(size);
             send_message_to_server(message, socket_desc);
-            char response[size];
-            receive_response(socket_desc, response);
+            char response1[size];
+            receive_response(socket_desc, response1);
         }
         else if (choice == 2) {
             char * message = buildFileInfoMessage();
             send_message_to_server(message, socket_desc);
-            char response[500];
-            receive_response(socket_desc, response);
+            char response2[500];
+            receive_response(socket_desc, response2);
         }
         else if (choice == 3) {
             char * message = buildCreateFolderMessage();
             send_message_to_server(message, socket_desc);
-            char response[5];
-            receive_response(socket_desc, response);
+            char response3[5];
+            receive_response(socket_desc, response3);
         }
         else if (choice == 4) {
             char * message = buildCreateFileMessage();
             send_message_to_server(message, socket_desc);
-            char response[5];
-            receive_response(socket_desc, response);
+            char response4[5];
+            receive_response(socket_desc, response4);
         }
         else if (choice == 5) {
             char * message = buildDeleteFileMessage();
             send_message_to_server(message, socket_desc);
-            char response[5];
-            receive_response(socket_desc, response);
+            char response5[5];
+            receive_response(socket_desc, response5);
         }
         else {
             printf("Invalid choice\n");

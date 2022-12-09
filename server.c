@@ -21,9 +21,38 @@ char * mkd_request = "MKD";
 char * mkf_request = "MKF";
 char * del_request = "DEL";
 char root_volume1[] = "/Volumes/FS1/";
+char root_volume2[] = "/Volumes/FS2/";
+
+int check_file_exists(char * filepath) {
+    return (access(filepath, F_OK));
+}
+
+void duplicate_file(char * source, char * destination) {
+    FILE *fp = NULL;
+    char command[150];
+    sprintf(command, "cp %s %s", source, destination);
+    if ((fp=popen(command,"r")) != NULL) {
+    pclose(fp);
+    }
+}
+
+void mirror_existing_data(char * filepath1, char * filepath2) {
+    if (check_file_exists(filepath1) == 0) {
+        if (check_file_exists(filepath2) != 0) {
+                duplicate_file(filepath1, filepath2);
+        }
+    }
+    else {
+        if (check_file_exists(filepath2) == 0) {
+           duplicate_file(filepath2, filepath1);
+        }
+    }
+}
 
 int send_response(int client_sock, char* server_message) {
-    if (send(client_sock, server_message, strlen(server_message), 0) < 0){
+    int send_result = send(client_sock, server_message, strlen(server_message), 0);
+    printf("Send result %d\n", send_result);
+    if (send_result < 0){
     printf("Can't send\n");
     return -1;
   }
@@ -38,7 +67,7 @@ char * build_file_info_msg(struct stat stats, char* filedata) {
         strcat(filedata,"w ");
     if (stats.st_mode & X_OK)
         strcat(filedata,"x ");
-    char *size;
+    char *size = malloc(sizeof(char) * 100);
     sprintf(size, "File size: %lld ", stats.st_size);
     strcat(filedata, size);
 
@@ -60,13 +89,18 @@ char * build_file_info_msg(struct stat stats, char* filedata) {
 
 char * create_directory(char * dirname) {
     char * full_path1 = malloc(strlen(root_volume1) + strlen(dirname) + 1);
+    char * full_path2 = malloc(strlen(root_volume2) + strlen(dirname) + 1);
     strcpy(full_path1, root_volume1);
     strcat(full_path1, dirname);
 
-    int result = mkdir(full_path1, 0777);
+    strcpy(full_path2, root_volume2);
+    strcat(full_path2, dirname);
+
+    int result1 = mkdir(full_path1, 0777);
+    int result2 = mkdir(full_path2, 0777);
     char * resultstr = malloc(sizeof(char) * 5);
 
-    if (result == 0) {
+    if (result1 == 0 || result2 == 0) {
         resultstr = "PASS";
     }
     else {
@@ -75,14 +109,33 @@ char * create_directory(char * dirname) {
     return resultstr;
 }
 
-char * create_file(char * filename) {
+char * create_file(char * filename, char * filedata) {
+    FILE *fp1;
+    FILE * fp2;
     char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
     strcpy(full_path1, root_volume1);
     strcat(full_path1, filename);
 
-    int result = fclose(fopen(full_path1, "a"));
-    char * resultstr = malloc(sizeof(char) * 5);
+    char * full_path2 = malloc(strlen(root_volume2) + strlen(filename) + 1);
+    strcpy(full_path2, root_volume2);
+    strcat(full_path2, filename);
 
+    int result = 0;
+    fp1 = fopen(full_path1,"w");
+    fp2 = fopen(full_path2,"w");
+
+    if(fp1 == NULL && fp2 == NULL) {
+          result = -1;
+    }
+   if (result != -1) {
+       fprintf(fp1,"%s",filedata);
+       fprintf(fp2,"%s",filedata);
+       if(fclose(fp1) != 0 && fclose(fp2) != 0) {
+          result = -1;
+    }
+   }
+
+    char * resultstr = malloc(sizeof(char) * 5);
     if (result == 0) {
         resultstr = "PASS";
     }
@@ -97,10 +150,16 @@ char * delete_file(char * filename) {
     strcpy(full_path1, root_volume1);
     strcat(full_path1, filename);
 
-    int result = remove(full_path1);
+    char * full_path2 = malloc(strlen(root_volume2) + strlen(filename) + 1);
+    strcpy(full_path2, root_volume2);
+    strcat(full_path2, filename);
+
+    int result1 = remove(full_path1);
+    int result2 = remove(full_path2);
+
     char * resultstr = malloc(sizeof(char) * 5);
 
-    if (result == 0) {
+    if (result1 == 0 || result2 == 0) {
         resultstr = "PASS";
     }
     else {
@@ -114,7 +173,22 @@ char * get_file_info(char * filename) {
     char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
     strcpy(full_path1, root_volume1);
     strcat(full_path1, filename);
-    if (stat(full_path1, &stats) == 0)
+
+    char * full_path2 = malloc(strlen(root_volume2) + strlen(filename) + 1);
+    strcpy(full_path2, root_volume2);
+    strcat(full_path2, filename);
+
+    mirror_existing_data(full_path1, full_path2);
+    char * filepath = malloc(sizeof(char) * 150);
+
+    if (check_file_exists(full_path1)) {
+        filepath = full_path1;
+    }
+    else {
+        filepath = full_path2;
+    }
+
+    if (stat(filepath, &stats) == 0)
     {
         char data[500];
         char * response = build_file_info_msg(stats, data);
@@ -131,10 +205,27 @@ char * get_file_info(char * filename) {
 char * get_file_data(char * filename, int size) {
     FILE* ptr;
     char * server_message = malloc(sizeof(char) * size);
+
     char * full_path1 = malloc(strlen(root_volume1) + strlen(filename) + 1);
     strcpy(full_path1, root_volume1);
     strcat(full_path1, filename);
-    ptr = fopen(full_path1, "r");
+
+    char * filepath = malloc(sizeof(char) * 150);
+
+    char * full_path2 = malloc(strlen(root_volume2) + strlen(filename) + 1);
+    strcpy(full_path2, root_volume2);
+    strcat(full_path2, filename);
+
+    mirror_existing_data(full_path1, full_path2);
+
+    if (check_file_exists(full_path1)) {
+        filepath = full_path1;
+    }
+    else {
+        filepath = full_path2;
+    }
+
+    ptr = fopen(filepath, "r");
     if (NULL == ptr) {
         printf("file can't be opened \n");
     }
@@ -165,7 +256,7 @@ int main(void)
   
   // Set port and IP:
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(2000);
+  server_addr.sin_port = htons(7799);
   server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   
   // Bind to the set port and IP:
@@ -205,7 +296,7 @@ int main(void)
   char * request_type = strtok(data, ",");
   if (strcmp(request_type, get_request) == 0) {
     char * filename = strtok(NULL, ",");
-    int size = atoi(strtok(NULL, ",")) + 1;
+    int size = atoi(strtok(NULL, ","));
     printf("Attempting to read file data\n");
     printf("Filename: %s\n", filename);
     char * server_message = get_file_data(filename, size);
@@ -228,8 +319,10 @@ int main(void)
   else if (strcmp(request_type, mkf_request) == 0) {
     printf("Attempting to create file\n");
     char * filename = strtok(NULL, ",");
+    char * filedata = strtok(NULL, ",");
     printf("File name: %s\n", filename);
-    char * server_message = create_file(filename);
+    printf("File data: %s\n", filedata);
+    char * server_message = create_file(filename, filedata);
     send_response(client_sock, server_message);
   }
   else if (strcmp(request_type, del_request) == 0) {

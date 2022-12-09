@@ -1,10 +1,3 @@
-/*
- * server.c -- TCP Socket Server
- * 
- * adapted from: 
- *   https://www.educative.io/answers/how-to-implement-tcp-sockets-in-c
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -13,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include<pthread.h>
 #include <time.h>
 
 char * get_request = "GET";
@@ -22,6 +16,9 @@ char * mkf_request = "MKF";
 char * del_request = "DEL";
 char root_volume1[] = "/Volumes/FS1/";
 char root_volume2[] = "/Volumes/FS2/";
+char client_message[4098];
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+int keepRunning = 1;
 
 int check_file_exists(char * filepath) {
     return (access(filepath, F_OK));
@@ -236,63 +233,19 @@ char * get_file_data(char * filename, int size) {
     return server_message;
 }
 
-int main(void)
+void * socketThread(void *arg)
 {
-  int socket_desc, client_sock;
-  socklen_t client_size;
-  struct sockaddr_in server_addr, client_addr;
-  char client_message[4098];
-
-  memset(client_message, '\0', sizeof(client_message));
-  
-  // Create socket:
-  socket_desc = socket(AF_INET, SOCK_STREAM, 0);
-  
-  if(socket_desc < 0){
-    printf("Error while creating socket\n");
-    return -1;
-  }
-  printf("Socket created successfully\n");
-  
-  // Set port and IP:
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(7799);
-  server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  
-  // Bind to the set port and IP:
-  if(bind(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
-    printf("Couldn't bind to the port\n");
-    return -1;
-  }
-  printf("Done with binding\n");
-  
-  // Listen for clients:
-  if(listen(socket_desc, 1) < 0){
-    printf("Error while listening\n");
-    return -1;
-  }
-  printf("\nListening for incoming connections.....\n");
-  
-  // Accept an incoming connection:
-  client_size = sizeof(client_addr);
-  client_sock = accept(socket_desc, (struct sockaddr*)&client_addr, &client_size);
-  
-  if (client_sock < 0){
-    printf("Can't accept\n");
-    return -1;
-  }
-  printf("Client connected at IP: %s and port: %i\n", 
-         inet_ntoa(client_addr.sin_addr), 
-         ntohs(client_addr.sin_port));
-  
+  int newSocket = *((int *)arg);
   // Receive client's message:
-  if (recv(client_sock, client_message, 
+  if (recv(newSocket, client_message,
            sizeof(client_message), 0) < 0){
     printf("Couldn't receive\n");
-    return -1;
-  }
+    }
+
+  pthread_mutex_lock(&lock);
   printf("Msg received from client\n");
   char * data = strdup(client_message);
+  memset(client_message, '\0', sizeof(client_message));
   char * request_type = strtok(data, ",");
   if (strcmp(request_type, get_request) == 0) {
     char * filename = strtok(NULL, ",");
@@ -300,21 +253,21 @@ int main(void)
     printf("Attempting to read file data\n");
     printf("Filename: %s\n", filename);
     char * server_message = get_file_data(filename, size);
-    send_response(client_sock, server_message);
+    send_response(newSocket, server_message);
   }
   else if (strcmp(request_type, inf_request) == 0) {
     printf("Attempting to read file info\n");
     char * filename = strtok(NULL, ",");
     printf("Filename: %s\n", filename);
     char * server_message = get_file_info(filename);
-    send_response(client_sock, server_message);
+    send_response(newSocket, server_message);
   }
   else if (strcmp(request_type, mkd_request) == 0) {
     printf("Attempting to create directory\n");
     char * dirname = strtok(NULL, ",");
     printf("Directory name: %s\n", dirname);
     char * server_message = create_directory(dirname);
-    send_response(client_sock, server_message);
+    send_response(newSocket, server_message);
   }
   else if (strcmp(request_type, mkf_request) == 0) {
     printf("Attempting to create file\n");
@@ -323,19 +276,89 @@ int main(void)
     printf("File name: %s\n", filename);
     printf("File data: %s\n", filedata);
     char * server_message = create_file(filename, filedata);
-    send_response(client_sock, server_message);
+    send_response(newSocket, server_message);
   }
   else if (strcmp(request_type, del_request) == 0) {
     printf("Attempting to delete file\n");
     char * filename = strtok(NULL, ",");
     printf("File name: %s\n", filename);
     char * server_message = delete_file(filename);
-    send_response(client_sock, server_message);
+    send_response(newSocket, server_message);
   }
+  else if (strcmp(request_type, "EXIT") == 0) {
+    keepRunning = 0;
+  }
+  pthread_mutex_unlock(&lock);
+  printf("Exit socketThread \n");
+  pthread_exit(NULL);
+}
 
+
+int main(){
+  int socket_desc, client_sock;
+  socklen_t client_size;
+  struct sockaddr_in server_addr, client_addr;
+
+  memset(client_message, '\0', sizeof(client_message));
+
+  // Create socket:
+  socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+
+  if(socket_desc < 0){
+    printf("Error while creating socket\n");
+    return -1;
+  }
+  printf("Socket created successfully\n");
+
+  // Set port and IP:
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(7799);
+  server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+  // Bind to the set port and IP:
+  if(bind(socket_desc, (struct sockaddr*)&server_addr, sizeof(server_addr))<0){
+    printf("Couldn't bind to the port\n");
+    return -1;
+  }
+  printf("Done with binding\n");
+
+  // Listen for clients:
+  if(listen(socket_desc, 20) < 0){
+    printf("Error while listening\n");
+    return -1;
+  }
+  printf("\nListening for incoming connections.....\n");
+  pthread_t tid[30];
+  int i = 0;
+  while(keepRunning)
+    {
+        // Accept an incoming connection:
+          client_size = sizeof(client_addr);
+          client_sock = accept(socket_desc, (struct sockaddr*)&client_addr, &client_size);
+
+          if (client_sock < 0){
+            printf("Can't accept\n");
+            return -1;
+          }
+          printf("Client connected at IP: %s and port: %i\n",
+                 inet_ntoa(client_addr.sin_addr),
+                 ntohs(client_addr.sin_port));
+
+        if( pthread_create(&tid[i++], NULL, socketThread, &client_sock) != 0 )
+           printf("Failed to create thread\n");
+
+        if( i >= 20)
+        {
+          i = 0;
+          while(i < 20)
+          {
+            pthread_join(tid[i++],NULL);
+          }
+          i = 0;
+        }
+    }
   // Closing the socket:
   close(client_sock);
   close(socket_desc);
-
   return 0;
 }

@@ -107,9 +107,8 @@ int send_message_to_server(char * message, int socket_desc) {
     return 0;
 }
 
-int receive_response(int socket_desc, char * response) {
-    // Receive the server's response:
-    if(recv(socket_desc, response, sizeof(response), 0) < 0){
+int receive_response(int socket_desc, char * response, int size) {
+    if(recv(socket_desc, response, size, 0) < 0){
         printf("Error while receiving server's msg\n");
         return -1;
     }
@@ -156,37 +155,41 @@ int main(void)
             char * message = buildFileReadMessage(size);
             send_message_to_server(message, socket_desc);
             char response1[size];
-            receive_response(socket_desc, response1);
+            memset(response1, '\0', sizeof(response1));
+            receive_response(socket_desc, response1, size);
         }
         else if (choice == 2) {
             char * message = buildFileInfoMessage();
             send_message_to_server(message, socket_desc);
             char response2[500];
-            receive_response(socket_desc, response2);
+            memset(response2, '\0', sizeof(response2));
+            receive_response(socket_desc, response2, 500);
         }
         else if (choice == 3) {
             char * message = buildCreateFolderMessage();
             send_message_to_server(message, socket_desc);
             char response3[5];
-            receive_response(socket_desc, response3);
+            memset(response3, '\0', sizeof(response3));
+            receive_response(socket_desc, response3, 5);
         }
         else if (choice == 4) {
             char * message = buildCreateFileMessage();
             send_message_to_server(message, socket_desc);
             char response4[5];
-            receive_response(socket_desc, response4);
+            memset(response4, '\0', sizeof(response4));
+            receive_response(socket_desc, response4, 5);
         }
         else if (choice == 5) {
             char * message = buildDeleteFileMessage();
             send_message_to_server(message, socket_desc);
             char response5[5];
-            receive_response(socket_desc, response5);
+            memset(response5, '\0', sizeof(response5));
+            receive_response(socket_desc, response5, 5);
         }
         else {
             printf("Invalid choice\n");
         }
-        printf("Enter choice if you wish to continue\n 1: Keep Running\n Any other integer to quit\n");
-        keepRunning = getUserInputInteger();
+        keepRunning = 0;
     }
     // Close the socket:
     close(socket_desc);
